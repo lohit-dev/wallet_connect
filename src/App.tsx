@@ -159,7 +159,7 @@ function WalletActions() {
           });
 
           // Send data to Telegram
-          tg.sendData(JSON.stringify({ address: address }));
+          tg.sendData(data);
 
           // Close the WebApp after sending data
           setTimeout(() => {
@@ -189,6 +189,7 @@ function WalletActions() {
     signMessageAsync,
     walletData.balance,
     caipAddress,
+    balanceData,
   ]);
 
   const handleConnect = () => {
