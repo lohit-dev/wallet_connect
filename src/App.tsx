@@ -5,7 +5,43 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { projectId, metadata, networks, wagmiAdapter } from "./config";
 import { useAppKitAccount, useAppKit } from "@reown/appkit/react";
 import { type Address } from "viem";
-import { WebApp } from "@grammyjs/web-app";
+
+declare global {
+  interface Window {
+    Telegram: {
+      WebApp: {
+        ready: () => void;
+        close: () => void;
+        MainButton: {
+          text: string;
+          show: () => void;
+          hide: () => void;
+          onClick: (callback: () => void) => void;
+          offClick: (callback: () => void) => void;
+          enable: () => void;
+          disable: () => void;
+        };
+        sendData: (data: string) => void;
+        initData: string;
+        initDataUnsafe: {
+          query_id: string;
+          user: {
+            id: number;
+            first_name: string;
+            last_name?: string;
+            username?: string;
+            language_code?: string;
+          };
+          auth_date: string;
+          hash: string;
+        };
+        isExpanded: boolean;
+        expand: () => void;
+        platform: string;
+      };
+    };
+  }
+}
 
 // Create query client
 const queryClient = new QueryClient();
@@ -39,6 +75,7 @@ function WalletActions() {
   });
   const [isMessageSigned, setIsMessageSigned] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isWebAppReady, setIsWebAppReady] = useState(false);
 
   const { address, caipAddress, isConnected } = useAppKitAccount();
   const { open } = useAppKit();
@@ -48,10 +85,27 @@ function WalletActions() {
     address: address as Address,
   });
 
+  // Initialize Telegram WebApp
   useEffect(() => {
-    console.log("WebApp.initDataUnsafe:", WebApp.initDataUnsafe);
-    console.log("WebApp.initData: ", WebApp.initData);
+    const tg = window.Telegram?.WebApp;
 
+    if (tg) {
+      console.log("Initializing Telegram WebApp");
+      try {
+        tg.ready(); // Notify Telegram that the WebApp is ready
+        tg.expand(); // Expand the WebApp to full screen
+        setIsWebAppReady(true);
+        console.log("Telegram WebApp initialized successfully");
+      } catch (error) {
+        console.error("Error initializing Telegram WebApp:", error);
+      }
+    } else {
+      console.error("Telegram WebApp not available");
+    }
+  }, []);
+
+  // Handle wallet connection state
+  useEffect(() => {
     if (isConnected && address) {
       setWalletData((prev) => ({
         ...prev,
@@ -66,6 +120,7 @@ function WalletActions() {
     }
   }, [isConnected, address, caipAddress, refetchBalance]);
 
+  // Update balance in walletData
   useEffect(() => {
     if (balanceData) {
       setWalletData((prev) => ({
@@ -74,6 +129,59 @@ function WalletActions() {
       }));
     }
   }, [balanceData]);
+
+  // Handle MainButton click for Telegram WebApp
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (!tg || !isWebAppReady) return;
+
+    if (isConnected && address) {
+      // Configure the MainButton
+      tg.MainButton.text = "CONFIRM WALLET";
+      tg.MainButton.show();
+      tg.MainButton.enable();
+
+      // Handle MainButton click
+      const handleMainButtonClick = async () => {
+        setIsSending(true);
+        try {
+          const message = "Confirm wallet connection";
+          const signature = await signMessageAsync({ message });
+
+          // Prepare data to send back to Telegram
+          const data = JSON.stringify({
+            address,
+            caipAddress,
+            signedMessage: signature,
+            balance: walletData.balance,
+            user: tg.initDataUnsafe.user,
+          });
+
+          // Send data to Telegram
+          tg.sendData(data);
+
+          // Close the WebApp after sending data
+          setTimeout(() => {
+            tg.close();
+          }, 2000);
+        } catch (error) {
+          console.error("Error signing message or sending data:", error);
+        } finally {
+          setIsSending(false);
+        }
+      };
+
+      tg.MainButton.onClick(handleMainButtonClick);
+
+      // Cleanup MainButton click handler
+      return () => {
+        tg.MainButton.offClick(handleMainButtonClick);
+      };
+    } else {
+      // Hide the MainButton if wallet is not connected
+      tg.MainButton.hide();
+    }
+  }, [isConnected, address, isWebAppReady, signMessageAsync, walletData.balance, caipAddress]);
 
   const handleConnect = () => {
     open({ view: "Connect" });
@@ -104,32 +212,6 @@ function WalletActions() {
     }
   };
 
-  const handleConfirm = () => {
-    if (!isMessageSigned) return;
-
-    // Validate data before sending
-    if (!walletData.address || !walletData.signedMessage) {
-      console.error("Invalid wallet data");
-      return;
-    }
-
-    // Check if WebApp is initialized
-    if (!WebApp.initData) {
-      console.error("WebApp is not initialized");
-      return;
-    }
-
-    setIsSending(true);
-
-    // Send data to the WebApp
-    WebApp.sendData(JSON.stringify(walletData));
-
-    // Close the app after a short delay
-    setTimeout(() => {
-      WebApp.close();
-    }, 2000);
-  };
-
   const truncateAddress = (addr: string | undefined) => {
     if (!addr) return "";
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -145,11 +227,6 @@ function WalletActions() {
             <button onClick={handleConnect}>Open Wallet</button>
             {!isMessageSigned && (
               <button onClick={handleSignMessage}>Sign Message</button>
-            )}
-            {isMessageSigned && !isSending && (
-              <button onClick={handleConfirm} className="confirm-button">
-                Confirm & Send
-              </button>
             )}
             <button onClick={handleDisconnect} className="disconnect-button">
               Disconnect
@@ -200,8 +277,7 @@ function WalletActions() {
 
             {isSending && (
               <div className="sending-notice">
-                {!WebApp.initData && <p>WebApp is not initialized</p>}
-                <p>Sending data and closing...</p>
+                <p>Sending data and closing Telegram WebApp...</p>
               </div>
             )}
           </div>
