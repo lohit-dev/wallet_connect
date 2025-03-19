@@ -153,12 +153,13 @@ function WalletActions() {
             address,
             caipAddress,
             signedMessage: signature,
-            balance: walletData.balance,
-            user: tg.initDataUnsafe.user,
+            balance: balanceData
+              ? `${balanceData.formatted} ${balanceData.symbol}`
+              : "",
           });
 
           // Send data to Telegram
-          tg.sendData(data);
+          tg.sendData(JSON.stringify({ address: address }));
 
           // Close the WebApp after sending data
           setTimeout(() => {
@@ -181,7 +182,14 @@ function WalletActions() {
       // Hide the MainButton if wallet is not connected
       tg.MainButton.hide();
     }
-  }, [isConnected, address, isWebAppReady, signMessageAsync, walletData.balance, caipAddress]);
+  }, [
+    isConnected,
+    address,
+    isWebAppReady,
+    signMessageAsync,
+    walletData.balance,
+    caipAddress,
+  ]);
 
   const handleConnect = () => {
     open({ view: "Connect" });
