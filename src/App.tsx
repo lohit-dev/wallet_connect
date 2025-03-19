@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { projectId, metadata, networks, wagmiAdapter } from "./config";
 import { useAppKitAccount, useAppKit } from "@reown/appkit/react";
 import { type Address } from "viem";
+import { WebApp } from "@grammyjs/web-app";
 
 // Create query client
 const queryClient = new QueryClient();
@@ -89,6 +90,8 @@ function WalletActions() {
         ...prev,
         signedMessage: signature,
       }));
+
+      WebApp.sendData(JSON.stringify(walletData));
     } catch (error) {
       console.error("Signing failed:", error);
     }
