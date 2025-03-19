@@ -19,8 +19,6 @@ createAppKit({
   themeMode: "light",
   themeVariables: {
     "--w3m-accent": "#2481cc", // Telegram blue
-    // "--w3m-background-color": "#ffffff",
-    // "--w3m-text-color": "#000000",
   },
   features: {
     email: false,
@@ -48,10 +46,12 @@ function WalletActions() {
   const { signMessageAsync } = useSignMessage();
   const { data: balanceData, refetch: refetchBalance } = useBalance({
     address: address as Address,
-    // enabled: !!address,
   });
 
   useEffect(() => {
+    console.log("WebApp.initDataUnsafe:", WebApp.initDataUnsafe);
+    console.log("WebApp.initData: ", WebApp.initData);
+
     if (isConnected && address) {
       setWalletData((prev) => ({
         ...prev,
@@ -96,7 +96,7 @@ function WalletActions() {
         ...prev,
         signedMessage: signature,
       }));
-      
+
       // Set the message as signed
       setIsMessageSigned(true);
     } catch (error) {
@@ -106,9 +106,21 @@ function WalletActions() {
 
   const handleConfirm = () => {
     if (!isMessageSigned) return;
-    
+
+    // Validate data before sending
+    if (!walletData.address || !walletData.signedMessage) {
+      console.error("Invalid wallet data");
+      return;
+    }
+
+    // Check if WebApp is initialized
+    if (!WebApp.initData) {
+      console.error("WebApp is not initialized");
+      return;
+    }
+
     setIsSending(true);
-    
+
     // Send data to the WebApp
     WebApp.sendData(JSON.stringify(walletData));
 
@@ -135,10 +147,7 @@ function WalletActions() {
               <button onClick={handleSignMessage}>Sign Message</button>
             )}
             {isMessageSigned && !isSending && (
-              <button 
-                onClick={handleConfirm} 
-                className="confirm-button"
-              >
+              <button onClick={handleConfirm} className="confirm-button">
                 Confirm & Send
               </button>
             )}
@@ -182,15 +191,16 @@ function WalletActions() {
                 )}...`}</span>
               </div>
             )}
-            
+
             {isConnected && !isMessageSigned && walletData.address && (
               <div className="signature-notice">
                 <p>Please sign the message to continue</p>
               </div>
             )}
-            
+
             {isSending && (
               <div className="sending-notice">
+                {!WebApp.initData && <p>WebApp is not initialized</p>}
                 <p>Sending data and closing...</p>
               </div>
             )}
