@@ -39,6 +39,8 @@ function WalletActions() {
     balance: "",
     connectionStatus: false,
   });
+  const [isMessageSigned, setIsMessageSigned] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const { address, caipAddress, isConnected } = useAppKitAccount();
   const { open } = useAppKit();
@@ -58,6 +60,9 @@ function WalletActions() {
         connectionStatus: isConnected,
       }));
       refetchBalance();
+    } else {
+      // Reset the state when disconnected
+      setIsMessageSigned(false);
     }
   }, [isConnected, address, caipAddress, refetchBalance]);
 
@@ -76,6 +81,7 @@ function WalletActions() {
 
   const handleDisconnect = () => {
     disconnect();
+    setIsMessageSigned(false);
   };
 
   const handleSignMessage = async () => {
@@ -90,11 +96,26 @@ function WalletActions() {
         ...prev,
         signedMessage: signature,
       }));
-
-      WebApp.sendData(JSON.stringify(walletData));
+      
+      // Set the message as signed
+      setIsMessageSigned(true);
     } catch (error) {
       console.error("Signing failed:", error);
     }
+  };
+
+  const handleConfirm = () => {
+    if (!isMessageSigned) return;
+    
+    setIsSending(true);
+    
+    // Send data to the WebApp
+    WebApp.sendData(JSON.stringify(walletData));
+
+    // Close the app after a short delay
+    setTimeout(() => {
+      WebApp.close();
+    }, 2000);
   };
 
   const truncateAddress = (addr: string | undefined) => {
@@ -110,11 +131,20 @@ function WalletActions() {
         ) : (
           <>
             <button onClick={handleConnect}>Open Wallet</button>
-            <button onClick={handleSignMessage}>Sign Message</button>
+            {!isMessageSigned && (
+              <button onClick={handleSignMessage}>Sign Message</button>
+            )}
+            {isMessageSigned && !isSending && (
+              <button 
+                onClick={handleConfirm} 
+                className="confirm-button"
+              >
+                Confirm & Send
+              </button>
+            )}
             <button onClick={handleDisconnect} className="disconnect-button">
               Disconnect
             </button>
-            {/* <button onClick={refetchBalance}>Refresh Balance</button> */}
           </>
         )}
       </div>
@@ -150,6 +180,18 @@ function WalletActions() {
                   0,
                   20
                 )}...`}</span>
+              </div>
+            )}
+            
+            {isConnected && !isMessageSigned && walletData.address && (
+              <div className="signature-notice">
+                <p>Please sign the message to continue</p>
+              </div>
+            )}
+            
+            {isSending && (
+              <div className="sending-notice">
+                <p>Sending data and closing...</p>
               </div>
             )}
           </div>
