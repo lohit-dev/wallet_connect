@@ -196,30 +196,35 @@ function WalletActions() {
     open({ view: "Connect" });
   };
 
+  const handleSwitchNetwork = () => {
+    open({ view: "Networks" });
+  };
+
   const handleDisconnect = () => {
     disconnect();
     setIsMessageSigned(false);
   };
 
-  const handleSignMessage = async () => {
-    if (!address) return;
-    try {
-      const message = "Hello Reown AppKit!";
-      const signature = await signMessageAsync({
-        message,
-        account: address as Address,
-      });
-      setWalletData((prev) => ({
-        ...prev,
-        signedMessage: signature,
-      }));
+  // This is custom sign implementation
+  // const handleSignMessage = async () => {
+  //   if (!address) return;
+  //   try {
+  //     const message = "Hello Reown AppKit!";
+  //     const signature = await signMessageAsync({
+  //       message,
+  //       account: address as Address,
+  //     });
+  //     setWalletData((prev) => ({
+  //       ...prev,
+  //       signedMessage: signature,
+  //     }));
 
-      // Set the message as signed
-      setIsMessageSigned(true);
-    } catch (error) {
-      console.error("Signing failed:", error);
-    }
-  };
+  //   // Set the message as signed
+  //     setIsMessageSigned(true);
+  //   } catch (error) {
+  //     console.error("Signing failed:", error);
+  //   }
+  // };
 
   const truncateAddress = (addr: string | undefined) => {
     if (!addr) return "";
@@ -234,9 +239,7 @@ function WalletActions() {
         ) : (
           <>
             <button onClick={handleConnect}>Open Wallet</button>
-            {!isMessageSigned && (
-              <button onClick={handleSignMessage}>Sign Message</button>
-            )}
+            <button onClick={handleSwitchNetwork}>Change Network</button>
             <button onClick={handleDisconnect} className="disconnect-button">
               Disconnect
             </button>
