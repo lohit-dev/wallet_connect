@@ -1,4 +1,5 @@
-import { createAppKit, useDisconnect } from "@reown/appkit/react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { AccountType, createAppKit, useDisconnect } from "@reown/appkit/react";
 import { useBalance, useSignMessage, WagmiProvider } from "wagmi";
 import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -66,18 +67,27 @@ createAppKit({
 
 // Simple component for wallet actions
 function WalletActions() {
-  const [walletData, setWalletData] = useState({
+  const [walletData, setWalletData] = useState<{
+    address: string;
+    caipAddress: string;
+    signedMessage: string;
+    balance: string;
+    accounts: AccountType[] | any;
+    connectionStatus: boolean;
+  }>({
     address: "",
     caipAddress: "",
     signedMessage: "",
     balance: "",
+    accounts: [],
     connectionStatus: false,
   });
+
   const [isMessageSigned, setIsMessageSigned] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isWebAppReady, setIsWebAppReady] = useState(false);
 
-  const { address, caipAddress, isConnected } = useAppKitAccount();
+  const { address, caipAddress, isConnected, allAccounts } = useAppKitAccount();
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
@@ -148,8 +158,15 @@ function WalletActions() {
           const message = "Confirm wallet connection";
           const signature = await signMessageAsync({ message });
 
+          setWalletData((prev) => ({
+            ...prev,
+            signedMessage: signature,
+            accounts: allAccounts,
+          }));
+
           // Prepare data to send back to Telegram
           const data = JSON.stringify({
+            accounts: allAccounts,
             address,
             caipAddress,
             signedMessage: signature,
@@ -157,6 +174,8 @@ function WalletActions() {
               ? `${balanceData.formatted} ${balanceData.symbol}`
               : "",
           });
+
+          console.log("The data sent is:", data);
 
           // Send data to Telegram
           tg.sendData(data);
@@ -190,6 +209,7 @@ function WalletActions() {
     walletData.balance,
     caipAddress,
     balanceData,
+    allAccounts,
   ]);
 
   const handleConnect = () => {
