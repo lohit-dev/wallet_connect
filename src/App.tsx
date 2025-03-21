@@ -163,7 +163,7 @@ function WalletActions() {
         try {
           const signature = await signTypedDataAsync({
             domain: {
-              chainId: BigInt(1),
+              chainId: BigInt(11155111),
               name: "Garden",
               version: "1",
             },
