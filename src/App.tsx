@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AccountType, createAppKit, useDisconnect } from "@reown/appkit/react";
-import { useBalance, useSignMessage, WagmiProvider } from "wagmi";
+import {
+  useBalance,
+  useSignMessage,
+  useSignTypedData,
+  WagmiProvider,
+} from "wagmi";
 import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { projectId, metadata, networks, wagmiAdapter } from "./config";
@@ -91,6 +96,7 @@ function WalletActions() {
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
+  const { signTypedDataAsync } = useSignTypedData();
   const { data: balanceData, refetch: refetchBalance } = useBalance({
     address: address as Address,
   });
@@ -155,8 +161,26 @@ function WalletActions() {
       const handleMainButtonClick = async () => {
         setIsSending(true);
         try {
-          const message = "Confirm wallet connection";
-          const signature = await signMessageAsync({ message });
+          const signature = await signTypedDataAsync({
+            domain: {
+              chainId: BigInt(1),
+              name: "Garden",
+              version: "1",
+            },
+            message: {
+              content: "Hello Garden",
+            },
+            primaryType: "Message",
+            types: {
+              EIP712Domain: [
+                { name: "name", type: "string" },
+                { name: "version", type: "string" },
+                { name: "chainId", type: "uint256" },
+              ],
+              Message: [{ name: "content", type: "string" }],
+            },
+            account: address as any,
+          });
 
           setWalletData((prev) => ({
             ...prev,
